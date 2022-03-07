@@ -56,7 +56,7 @@ if __name__ == '__main__':
     test_name = 'section_00_source_train_normal_0000_strength_1_ambient.wav'
     print(extract_info_from_file_name(test_name))
 
-    test_dir = 'P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\dev_data'
+    test_dir = 'data/fan'
     print(get_files_from_dir_with_pathlib(test_dir))
 
 # EOF

@@ -14,6 +14,7 @@ __all__ = [
 
 import numpy as np
 import librosa as lb
+import pandas as pd
 from typing import MutableMapping, Union, Optional
 import pickle
 import os
@@ -21,6 +22,9 @@ from pathlib import Path
 import pandas as pd
 
 from common import *
+DEV_DATA = Path('dev_data') # This line is for running on MacOS
+# DEV_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\dev_data')
+# ADD_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\add_data')
 
 
 def extract_mel_band_energies(audio_file: np.ndarray,
@@ -140,9 +144,48 @@ def dataframe_serialize(data_path: Union[str, Path]) -> None:
         return
 
 
+def get_info_one_file(input_file_path: Union[str, Path]):
+    features_and_classes = {}
+
+    # gather feature and info
+    audio_data, sr = lb.load(input_file_path)
+    mbe = extract_mel_band_energies(audio_data, sr, n_fft=8192, hop_length=512, n_mels=256)
+    # file_name = str(input_file_path).split('\\')[-1]
+    file_name = str(input_file_path).split('/')[-1]
+    section, _, _, label, _ = extract_info_from_file_name(file_name)
+
+    # assign value for dict
+    features_and_classes['Feature'] = mbe
+    features_and_classes['Section'] = section
+    features_and_classes['Label'] = label
+
+    # Return information dict
+    return features_and_classes
+
+
+def extract_features_dataframe(data_path: Union[str, Path]):
+    data_df = pd.DataFrame(columns=['Section', 'Label', 'Feature'])
+
+    for machine_type_path in get_files_from_dir_with_pathlib(data_path)[:1]:
+        for partition_path in get_files_from_dir_with_pathlib(machine_type_path):
+            machine_type = str(partition_path).split('/')[-2]
+            partition = str(partition_path).split('/')[-1]
+            # split = 'test' if 'test' in str(partition_path) else 'train'
+            # Add data to dataframe
+            for file_path in get_files_from_dir_with_pathlib(partition_path):
+                features_and_classes = get_info_one_file(file_path)
+                data_df = data_df.append(features_and_classes, ignore_index=True)
+    
+            # Save dataframe to a pickle file
+            pickle_path = f"dev_data_df/{machine_type}/{partition}.pickle"
+            data_df.to_pickle(pickle_path)
+
+
 def main():
     extract_features(ADD_DATA)
     dataframe_serialize(ADD_DATA)
+    # extract_features(DEV_DATA)
+    extract_features_dataframe(DEV_DATA)
 
 
 if __name__ == '__main__':
