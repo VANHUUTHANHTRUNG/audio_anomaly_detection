@@ -4,7 +4,9 @@
 __author__ = 'cptrva'
 __docformat__ = 'reStructuredText'
 __all__ = [
-
+    'SingleMachineDataset',
+    'get_dataloader',
+    'get_dataset'
 ]
 
 from torch.utils.data import DataLoader, Dataset
@@ -95,6 +97,13 @@ def get_dataset(data_parent_dir: Union[str, Path],
                                    data_parent_dir=data_parent_dir,
                                    use_add_data=use_add_data)
     return dataset
+
+
+def get_dataloader(dataset: SingleMachineDataset,
+                   batch_size: int,
+                   shuffle: bool,
+                   drop_last: bool):
+    return DataLoader(dataset=dataset,batch_size=batch_size,shuffle=shuffle,drop_last=drop_last,num_workers=1)
 
 
 def main():
