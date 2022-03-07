@@ -6,12 +6,17 @@ __docformat__ = 'reStructuredText'
 __all__ = [
     'extract_info_from_file_name',
     'get_files_from_dir_with_os',
-    'get_files_from_dir_with_pathlib'
+    'get_files_from_dir_with_pathlib',
+    'DEV_DATA',
+    'ADD_DATA'
 ]
 
 from typing import Union, List
 from pathlib import Path
 import os
+
+DEV_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\dev_data')
+ADD_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\add_data')
 
 
 def extract_info_from_file_name(file_name: str):
@@ -47,7 +52,6 @@ def get_files_from_dir_with_pathlib(dir_name: Union[str, Path]) -> List[Path]:
 
 
 if __name__ == '__main__':
-
     # test_name = 'section_02_source_test_normal_0026.wav'
     test_name = 'section_00_source_train_normal_0000_strength_1_ambient.wav'
     print(extract_info_from_file_name(test_name))

@@ -4,6 +4,11 @@
 __author__ = 'cptrva'
 __docformat__ = 'reStructuredText'
 __all__ = [
+    'handle_one_file',
+    'extract_features',
+    'dataframe_serialize',
+    'serialize_features_and_classes',
+    'extract_mel_band_energies',
 
 ]
 
@@ -13,10 +18,9 @@ from typing import MutableMapping, Union, Optional
 import pickle
 import os
 from pathlib import Path
-from common import *
+import pandas as pd
 
-DEV_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\dev_data')
-ADD_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\add_data')
+from common import *
 
 
 def extract_mel_band_energies(audio_file: np.ndarray,
@@ -67,7 +71,7 @@ def serialize_features_and_classes(features_and_class: MutableMapping[Union[str,
 
 
 def handle_one_file(input_file_path: Union[str, Path],
-                    output_file_path: Union[str, Path]):
+                    output_file_path: Union[str, Path]) -> None:
     features_and_classes = {}
 
     # gather feature and info
@@ -81,29 +85,64 @@ def handle_one_file(input_file_path: Union[str, Path],
     features_and_classes['section'] = section
     features_and_classes['usage'] = usage
     features_and_classes['domain'] = domain
-    features_and_classes['label'] = label
+    features_and_classes['label'] = 0 if label == 'normal' else 1
     features_and_classes['id_per_section'] = id_per_section
 
     # save object as a pickle
     serialize_features_and_classes(features_and_classes, output_file_path)
 
-# TODO remove constraint on only fan folder
 
-
-def extract_features(data_path: Union[str, Path]):
-    for machine_type_path in get_files_from_dir_with_pathlib(data_path)[:1]:
-        for partition_path in get_files_from_dir_with_pathlib(machine_type_path):
+def extract_features(data_path: Union[str, Path]) -> None:
+    for machine_type_path in get_files_from_dir_with_pathlib(data_path):
+        print("Machine in", machine_type_path)
+        # Ignore the feature_x folder in case we want to overwrite pickle files
+        for partition_path in filter(lambda p: ('features' not in str(p)) and ('df' not in str(p)),
+                                     get_files_from_dir_with_pathlib(machine_type_path)):
             features_path = 'features_test' if 'test' in str(partition_path) else 'features_train'
             features_path = Path.joinpath(machine_type_path, features_path)
+            print("Save features in ", features_path)
             for file_path in get_files_from_dir_with_pathlib(partition_path):
                 file_name = file_path.stem
                 feature_saved_path = Path.joinpath(features_path, file_name)
                 handle_one_file(input_file_path=file_path,
                                 output_file_path=feature_saved_path)
+        print("--------------------------")
+        return
+
+
+def dataframe_serialize(data_path: Union[str, Path]) -> None:
+    """ Group the features and info of all sample into one pandas data frame
+
+    :param data_path: path to data folder (dev_data or add_data)
+    """
+    for machine_type_path in get_files_from_dir_with_pathlib(data_path):
+        print("Machine in", machine_type_path)
+        for partition_path in filter(lambda p: 'features' in str(p),
+                                     get_files_from_dir_with_pathlib(machine_type_path)):
+            df_path = 'df_test' if 'test' in str(partition_path) else 'df_train'
+            df_path = Path.joinpath(machine_type_path, df_path)
+            print("Save df in ", df_path)
+            dataframe = pd.DataFrame([], columns=['section', 'label', 'features'])
+            for pickle_path in get_files_from_dir_with_pathlib(partition_path):
+                file_name = pickle_path.stem
+                print(pickle_path)
+                pickle_read = pd.read_pickle(pickle_path)
+                df = pd.DataFrame([{'section': pickle_read['section'],
+                                    'label': pickle_read['label'],
+                                    'features': pickle_read['features']}])
+                dataframe = dataframe.append(df, ignore_index=True)
+            dataframe['id'] = dataframe.index
+            df_filename = 'df_test.pkl' if 'test' in str(df_path) else 'df_train.pkl'
+            dataframe.to_pickle(Path.joinpath(df_path, df_filename))
+
+        print('Done with ', machine_type_path.name)
+        print('------------------------------')
+        return
 
 
 def main():
-    extract_features(DEV_DATA)
+    extract_features(ADD_DATA)
+    dataframe_serialize(ADD_DATA)
 
 
 if __name__ == '__main__':
