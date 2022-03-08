@@ -134,7 +134,7 @@ def dataframe_serialize(data_path: Union[str, Path]) -> None:
                 df = pd.DataFrame([{'section': pickle_read['section'],
                                     'label': pickle_read['label'],
                                     'features': pickle_read['features']}])
-                dataframe = dataframe.append(df, ignore_index=True)
+                dataframe = pd.concat(dataframe, df)
             dataframe['id'] = dataframe.index
             df_filename = 'df_test.pkl' if 'test' in str(df_path) else 'df_train.pkl'
             dataframe.to_pickle(Path.joinpath(df_path, df_filename))

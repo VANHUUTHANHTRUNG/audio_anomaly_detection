@@ -17,6 +17,7 @@ import os
 
 DEV_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\dev_data')
 ADD_DATA = Path('P:\\StudentDocuments\\Documents\\audio_anomaly_detection\\add_data')
+DEV_DATA_MAC = Path('dev_data_df')
 
 
 def extract_info_from_file_name(file_name: str):
