@@ -14,7 +14,7 @@ from typing import Union, Optional, Tuple, Dict, List
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from common import DEV_DATA, ADD_DATA
+from common import DEV_DATA, ADD_DATA, DEV_DATA_MAC
 
 
 class SingleMachineDataset(Dataset):
@@ -59,14 +59,14 @@ class SingleMachineDataset(Dataset):
                                         Tuple[np.ndarray, str, str]]:
         if self.data_name == 'train':
             # return triplet of df read from df_train.pkl
-            anchor_df = self.dataset[item]
+            anchor_df = self.dataset.iloc[[item]]
             positive_df = self.dataset.loc[self.dataset['section'] == anchor_df['section'] &
                                            self.dataset['id'] != anchor_df['id']].sample()
             negative_df = self.dataset.loc[self.dataset['section'] != anchor_df['section']].sample()
             return anchor_df['features'], positive_df['features'], negative_df['features']
         elif self.data_name == 'test':
             # return only one row from df_test.pkl, use section to randomly pick from train data later
-            test_df = self.dataset[item]
+            test_df = self.dataset.iloc[[item]]
             return test_df['features'], test_df['section'], test_df['label']
         else:
             raise Exception('data name can only be either train or test')
