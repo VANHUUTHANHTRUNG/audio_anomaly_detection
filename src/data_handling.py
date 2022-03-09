@@ -103,7 +103,11 @@ def get_dataloader(dataset: SingleMachineDataset,
                    batch_size: int,
                    shuffle: bool,
                    drop_last: bool):
-    return DataLoader(dataset=dataset,batch_size=batch_size,shuffle=shuffle,drop_last=drop_last,num_workers=1)
+    return DataLoader(dataset=dataset,
+                      batch_size=batch_size,
+                      shuffle=shuffle,
+                      drop_last=drop_last,
+                      num_workers=1)
 
 
 def main():

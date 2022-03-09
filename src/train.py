@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from embedding_model import EmbeddingModel
 from data_handling import SingleMachineDataset, get_dataloader, get_dataset
-from common import DEV_DATA_MAC
+from common import DEV_DATA_MAC, DEV_DATA
 from copy import deepcopy
 from auc import auc
 
@@ -52,11 +52,11 @@ def infer(device: str, model: EmbeddingModel, train_dataset: SingleMachineDatase
         for infering_sample in infering_samples:
             infering_sample_embedded = model(infering_sample)
             distances.append(nn.PairwiseDistance(feature_embedded, infering_sample_embedded))
-        
+
         # Add anomaly scores (as the mean of the distances)
         anomaly_scores.append(np.mean(np.array(distances)))
         ground_truths.append(label)
-    
+
     return auc(np.array(anomaly_scores), np.array(ground_truths))
 
 
@@ -116,15 +116,14 @@ def main():
                            output_embeddings_length=output_embeddings_length,
                            dropout=dropout)
 
-
     model = model.to(device)
-    
+
     # Load data
-    train_dataset = get_dataset(DEV_DATA_MAC, 'fan', 'train')
-    test_dataset = get_dataset(DEV_DATA_MAC, 'fan', 'test')
+    train_dataset = get_dataset(DEV_DATA, 'fan', 'train')
+    test_dataset = get_dataset(DEV_DATA, 'fan', 'test')
     train_iterator = get_dataloader(train_dataset, 4, False, False)
     test_iterator = get_dataloader(test_dataset, 1, True, False)
-    
+
     # Loss function & optimizer
     triplet_loss = nn.TripletMarginWithDistanceLoss(distance_function=nn.PairwiseDistance())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -150,6 +149,7 @@ def main():
     trained_model = deepcopy(model)
     anomaly_threshold = infer(device, model, train_dataset, test_iterator)
     print("Anomaly threshold: ", anomaly_threshold)
+
 
 if __name__ == '__main__':
     main()
