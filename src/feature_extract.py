@@ -9,7 +9,6 @@ __all__ = [
     'dataframe_serialize',
     'serialize_features_and_classes',
     'extract_mel_band_energies',
-
 ]
 
 import numpy as np

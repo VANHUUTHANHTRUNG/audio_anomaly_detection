@@ -9,12 +9,16 @@ __all__ = [
     'get_dataset'
 ]
 
-from torch.utils.data import DataLoader, Dataset
-from typing import Union, Optional, Tuple, Dict, List
 from pathlib import Path
+from typing import Union, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from common import DEV_DATA, ADD_DATA, DEV_DATA_MAC
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from torch import Tensor
+
+from common import DEV_DATA
 
 
 class SingleMachineDataset(Dataset):
@@ -41,6 +45,7 @@ class SingleMachineDataset(Dataset):
                                       'df_test' if data_name == 'test' else 'df_train',
                                       self.df_name)
         self.dataset = self._load_data(input_df_path)
+        self.transform = transforms.Compose([transforms.ToTensor()])
 
     @staticmethod
     def _load_data(input_df_path: Union[str, Path]) -> pd.DataFrame:
@@ -55,19 +60,24 @@ class SingleMachineDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self,
-                    item: int) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray],
-                                        Tuple[np.ndarray, str, str]]:
+                    item: int) -> Union[Tuple[Tensor, Tensor, Tensor],
+                                        Tuple[Tensor, str, str]]:
         if self.data_name == 'train':
             # return triplet of df read from df_train.pkl
-            anchor_df = self.dataset.iloc[[item]]
-            positive_df = self.dataset.loc[self.dataset['section'] == anchor_df['section'] &
-                                           self.dataset['id'] != anchor_df['id']].sample()
+            anchor_df = self.dataset.iloc[item]
+            positive_df = self.dataset.loc[(self.dataset['section'] == anchor_df['section']) &
+                                           (self.dataset['id'] != anchor_df['id'])].sample()
             negative_df = self.dataset.loc[self.dataset['section'] != anchor_df['section']].sample()
-            return anchor_df['features'], positive_df['features'], negative_df['features']
+
+            anchor = Tensor(anchor_df['features'])
+            positive = Tensor(positive_df['features'].values[0].astype(np.float64))
+            negative = Tensor(negative_df['features'].values[0].astype(np.float64))
+            return anchor, positive, negative
+
         elif self.data_name == 'test':
             # return only one row from df_test.pkl, use section to randomly pick from train data later
-            test_df = self.dataset.iloc[[item]]
-            return test_df['features'], test_df['section'], test_df['label']
+            test_df = self.dataset.iloc[item]
+            return Tensor(test_df['features']), test_df['section'], test_df['label']
         else:
             raise Exception('data name can only be either train or test')
 
@@ -102,7 +112,7 @@ def get_dataset(data_parent_dir: Union[str, Path],
 def get_dataloader(dataset: SingleMachineDataset,
                    batch_size: int,
                    shuffle: bool,
-                   drop_last: bool):
+                   drop_last: bool) -> DataLoader:
     return DataLoader(dataset=dataset,
                       batch_size=batch_size,
                       shuffle=shuffle,
@@ -116,6 +126,15 @@ def main():
                           data_name='train',
                           use_add_data=False)
     print(len(dataset))
+    sample_train = dataset.__getitem__(9)
+    print(type(sample_train))
+    dataset = get_dataset(data_parent_dir=DEV_DATA,
+                          machine_type='fan',
+                          data_name='test',
+                          use_add_data=False)
+    print(len(dataset))
+    sample_test = dataset.__getitem__(3)
+    print(type(sample_test))
 
 
 if __name__ == '__main__':

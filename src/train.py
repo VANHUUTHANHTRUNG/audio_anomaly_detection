@@ -13,51 +13,12 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 from embedding_model import EmbeddingModel
 from data_handling import SingleMachineDataset, get_dataloader, get_dataset
-from common import DEV_DATA_MAC, DEV_DATA
+from common import DEV_DATA_MAC, DEV_DATA, CHECKPOINT
 from copy import deepcopy
 from auc import auc
+import time
 
 
-def infer(device: str, model: EmbeddingModel, train_dataset: SingleMachineDataset, test_iterator: DataLoader):
-    """
-    Using random training samples as reference, calculate the anomaly score and return
-    the best threshold for anomaly detection
-
-    :param device: str,
-        The device used to train the model (Either CPU or GPU)
-    :param model: EmbeddingModel,
-        Model used for embedding
-    :param train_dataset: SingleMachineDataset,
-        Training dataset of a particular machine
-    :param test_iterator: DataLoader,
-        Dataloader of testing dataset of a particular machine
-    """
-    anomaly_scores = []
-    ground_truths = []
-
-    for i, batch in test_iterator:
-        feature, label = batch
-        feature.to(device)
-
-        # Embed the feature
-        feature_embedded = model(feature)
-
-        # Samples to infer
-        infering_samples = train_dataset.sample_to_infer()
-
-        # Save the distances into a list
-        distances = []
-
-        # Distance of the features from the sample
-        for infering_sample in infering_samples:
-            infering_sample_embedded = model(infering_sample)
-            distances.append(nn.PairwiseDistance(feature_embedded, infering_sample_embedded))
-
-        # Add anomaly scores (as the mean of the distances)
-        anomaly_scores.append(np.mean(np.array(distances)))
-        ground_truths.append(label)
-
-    return auc(np.array(anomaly_scores), np.array(ground_truths))
 
 
 def main():
@@ -121,22 +82,36 @@ def main():
     # Load data
     train_dataset = get_dataset(DEV_DATA, 'fan', 'train')
     test_dataset = get_dataset(DEV_DATA, 'fan', 'test')
-    train_iterator = get_dataloader(train_dataset, 4, False, False)
-    test_iterator = get_dataloader(test_dataset, 1, True, False)
+    train_iterator = get_dataloader(dataset=train_dataset,
+                                    batch_size=4,
+                                    shuffle=False,
+                                    drop_last=True)
+    test_iterator = get_dataloader(dataset=test_dataset,
+                                   batch_size=1,
+                                   shuffle=True,
+                                   drop_last=True)
 
     # Loss function & optimizer
     triplet_loss = nn.TripletMarginWithDistanceLoss(distance_function=nn.PairwiseDistance())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+    print("------------------------Start training------------------------")
     # Train the model
     for epoch in range(epochs):
+        loss_training = []
+        model.train()
         for batch in train_iterator:
             optimizer.zero_grad()
 
             anchor, positive, negative = batch
+
             anchor = anchor.to(device)
             positive = positive.to(device)
             negative = negative.to(device)
+
+            anchor = torch.reshape(anchor, (4, -1, 256, 431))
+            positive = torch.reshape(positive, (4, -1, 256, 431))
+            negative = torch.reshape(negative, (4, -1, 256, 431))
 
             anchor_embedded = model(anchor)
             positive_embedded = model(positive)
@@ -144,11 +119,22 @@ def main():
 
             loss = triplet_loss(anchor_embedded, positive_embedded, negative_embedded)
             loss.backward()
-            # print(f"{epoch}, {loss.item()}")
 
-    trained_model = deepcopy(model)
-    anomaly_threshold = infer(device, model, train_dataset, test_iterator)
-    print("Anomaly threshold: ", anomaly_threshold)
+            optimizer.step()
+
+            loss_training.append(loss.item())
+
+        loss_training_mean = torch.Tensor(loss_training).mean()
+        print(f"epoch: {epoch}, loss: {loss_training_mean}")
+        print("------------------------------------------")
+
+    file_name = 'state_dict_model' + time.strftime("%Y%m%d-%H%M%S") + '.pt'
+    saved_model_path = Path(CHECKPOINT, file_name)
+    torch.save(model, saved_model_path)
+    print("Saved model in ", saved_model_path)
+    # trained_model = deepcopy(model)
+    # anomaly_threshold = infer(device, model, train_dataset, test_iterator)
+    # print("Anomaly threshold: ", anomaly_threshold)
 
 
 if __name__ == '__main__':
