@@ -91,7 +91,7 @@ def main():
     dropout = .25
 
     learning_rate = 0.1
-    epochs = 100
+    epochs = 10
 
     # Instantiate our DNN
     model = EmbeddingModel(cnn_channels_out_1=cnn_channels_out_1,
